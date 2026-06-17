@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.gitignore
+.lovable
+.tanstack
+dev-server.err.log
+dev-server.out.log
+npm-debug.log*
+docker-compose*.yml
