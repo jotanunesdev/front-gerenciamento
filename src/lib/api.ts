@@ -3,6 +3,9 @@ import type { ModuleKey } from "@/lib/modules";
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
   "http://localhost:3015";
+const TRAFFIC_API_BASE_URL =
+  (import.meta.env.VITE_TRAFFIC_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
+  "https://apifluig.jotanunes.com";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -213,15 +216,157 @@ export interface NotConnectedPayload {
   notConnected: true;
 }
 
+export interface TrafficDashboardPayload {
+  generatedAtUtc: string;
+  periodFromUtc: string;
+  periodToUtc: string;
+  summary: {
+    totalRequests: number;
+    averageDurationMs: number;
+    errorRequests: number;
+    errorRate: number;
+    requestsPerMinute: number;
+    peakRequestsPerMinute: number;
+    uniqueUsers: number;
+    uniqueSystems: number;
+  };
+  statusCodes: Array<{ statusCode: number; total: number }>;
+  timeline: Array<{
+    timestampUtc: string;
+    total: number;
+    errors: number;
+    averageDurationMs: number;
+  }>;
+  requestsPerMinute: Array<{ timestampUtc: string; total: number }>;
+  errors500ByHour: Array<{ timestampUtc: string; total: number }>;
+  topEndpoints: TrafficEndpointMetric[];
+  slowestEndpoints: TrafficEndpointMetric[];
+  topErrorEndpoints: TrafficEndpointMetric[];
+  slowestEndpointsByUser: Array<{
+    userName: string;
+    httpMethod: string;
+    endpoint: string;
+    total: number;
+    averageDurationMs: number;
+    maximumDurationMs: number;
+  }>;
+  topConsumers: Array<{
+    consumer: string;
+    consumerType: "user" | "system";
+    total: number;
+    errors: number;
+    averageDurationMs: number;
+  }>;
+  topUsers: Array<{
+    userName: string;
+    total: number;
+    errors: number;
+    averageDurationMs: number;
+  }>;
+  requestsByApi: Array<{ name: string; total: number }>;
+  requestsByEnvironment: Array<{ name: string; total: number }>;
+  recentErrors: Array<{
+    requestedAtUtc: string;
+    httpMethod: string;
+    endpoint: string;
+    statusCode: number;
+    durationMs: number;
+    userName: string;
+    sourceSystem: string | null;
+    traceId: string | null;
+  }>;
+  filters: {
+    apiNames: string[];
+    environments: string[];
+  };
+}
+
+export interface TrafficEndpointMetric {
+  httpMethod: string;
+  endpoint: string;
+  total: number;
+  errors: number;
+  averageDurationMs: number;
+  maximumDurationMs: number;
+}
+
+export interface LoadTestProfilePayload {
+  key: string;
+  name: string;
+  description: string;
+  scriptName: string;
+  expectedDurationSeconds: number;
+  maxVirtualUsers: number;
+}
+
+export interface LoadTestThresholdResultPayload {
+  metric: string;
+  passed: boolean;
+  rules: string[];
+}
+
+export interface LoadTestTimelinePointPayload {
+  timestampUtc: string;
+  elapsedSeconds: number;
+  requests: number;
+  failures: number;
+  averageDurationMs: number;
+  p95DurationMs: number;
+  activeVirtualUsers: number;
+}
+
+export interface LoadTestEndpointMetricPayload {
+  name: string;
+  httpMethod: string;
+  endpoint: string;
+  executionMode: "real" | "dry-run" | "discovery";
+  requests: number;
+  failures: number;
+  errorRate: number;
+  averageDurationMs: number;
+  minimumDurationMs: number;
+  maximumDurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+}
+
+export interface LoadTestRunListItemPayload {
+  runId: string;
+  profileKey: string;
+  profileName: string;
+  status: string;
+  targetBaseUrl: string;
+  triggeredBy: string;
+  startedAtUtc: string;
+  finishedAtUtc: string | null;
+  expectedDurationSeconds: number;
+  totalRequests: number;
+  failedRequests: number;
+  errorRate: number;
+  averageDurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+  peakVirtualUsers: number;
+  maxRequestsPerSecond: number;
+  thresholdsPassed: boolean | null;
+}
+
+export interface LoadTestRunDetailPayload extends LoadTestRunListItemPayload {
+  progressPercent: number;
+  currentVirtualUsers: number;
+  summaryJson: string | null;
+  thresholdResults: LoadTestThresholdResultPayload[];
+  timeline: LoadTestTimelinePointPayload[];
+  endpointMetrics: LoadTestEndpointMetricPayload[];
+}
+
 export interface EntraAuthorizeUrlPayload {
   authorizationUrl: string;
   redirectUri?: string;
   state?: string | null;
 }
 
-export function isNotConnectedPayload(
-  value: unknown,
-): value is NotConnectedPayload {
+export function isNotConnectedPayload(value: unknown): value is NotConnectedPayload {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -230,10 +375,11 @@ export function isNotConnectedPayload(
   );
 }
 
-const buildUrl = (path: string) =>
-  `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
-
-async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+async function apiRequestFrom<T>(
+  baseUrl: string,
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
   const headers = new Headers(options.headers);
   let body = options.body;
 
@@ -242,7 +388,8 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
     body = JSON.stringify(body);
   }
 
-  const response = await fetch(buildUrl(path), {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const response = await fetch(`${baseUrl}${normalizedPath}`, {
     ...options,
     headers,
     body: body as BodyInit | null | undefined,
@@ -258,8 +405,9 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
     const message =
       typeof payload === "object" && payload !== null
         ? ((payload as Record<string, unknown>).error ??
-            (payload as Record<string, unknown>).message ??
-            "Falha ao comunicar com a API.")
+          (payload as Record<string, unknown>).message ??
+          (payload as Record<string, unknown>).detail ??
+          "Falha ao comunicar com a API.")
         : "Falha ao comunicar com a API.";
     throw new Error(String(message));
   }
@@ -267,12 +415,18 @@ async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Pro
   return payload as T;
 }
 
+const apiRequest = <T>(path: string, options: ApiRequestOptions = {}) =>
+  apiRequestFrom<T>(API_BASE_URL, path, options);
+
 export const sessionApi = {
   login(username: string, password: string) {
-    return apiRequest<{ ok?: boolean; authenticated?: boolean }>("/inadimplencia/session/entra/login", {
-      method: "POST",
-      body: { username, password },
-    });
+    return apiRequest<{ ok?: boolean; authenticated?: boolean }>(
+      "/inadimplencia/session/entra/login",
+      {
+        method: "POST",
+        body: { username, password },
+      },
+    );
   },
   getAuthorizeUrl(params: {
     redirectUri: string;
@@ -292,11 +446,7 @@ export const sessionApi = {
       `/inadimplencia/session/entra/authorize-url?${search.toString()}`,
     );
   },
-  exchangeAuthorizationCode(input: {
-    code: string;
-    redirectUri: string;
-    codeVerifier: string;
-  }) {
+  exchangeAuthorizationCode(input: { code: string; redirectUri: string; codeVerifier: string }) {
     return apiRequest<{ authenticated?: boolean; error?: string }>(
       "/inadimplencia/session/entra/token",
       {
@@ -395,20 +545,17 @@ export const managementApi = {
       page: String(params.page),
       pageSize: String(params.pageSize),
     });
-    return apiRequest<{ executions: N8nExecutionItem[]; total: number; page: number; pageSize: number } | NotConnectedPayload>(
-      `/management/n8n/history?${search.toString()}`,
-    );
+    return apiRequest<
+      | { executions: N8nExecutionItem[]; total: number; page: number; pageSize: number }
+      | NotConnectedPayload
+    >(`/management/n8n/history?${search.toString()}`);
   },
   listStoredExecutions() {
     return apiRequest<{ executions: N8nExecutionItem[] } | NotConnectedPayload>(
       "/management/n8n/stored-executions",
     );
   },
-  getHistoryStats(params: {
-    periodDays: number;
-    workflowId?: string;
-    windowed?: boolean;
-  }) {
+  getHistoryStats(params: { periodDays: number; workflowId?: string; windowed?: boolean }) {
     const search = new URLSearchParams({
       periodDays: String(params.periodDays),
     });
@@ -416,6 +563,55 @@ export const managementApi = {
     if (params.windowed != null) search.set("windowed", String(params.windowed));
     return apiRequest<HistoryStatsPayload | NotConnectedPayload>(
       `/management/n8n/stats?${search.toString()}`,
+    );
+  },
+};
+
+export const trafficMonitoringApi = {
+  getDashboard(params: {
+    periodDays: number;
+    apiName?: string;
+    environment?: string;
+    excludeLoadTestTraffic?: boolean;
+  }) {
+    const search = new URLSearchParams({
+      periodDays: String(params.periodDays),
+    });
+    if (params.apiName) search.set("apiName", params.apiName);
+    if (params.environment) search.set("environment", params.environment);
+    if (params.excludeLoadTestTraffic) search.set("excludeLoadTestTraffic", "true");
+
+    return apiRequestFrom<TrafficDashboardPayload>(
+      TRAFFIC_API_BASE_URL,
+      `/traffic-monitoring/dashboard?${search.toString()}`,
+    );
+  },
+  listLoadTestProfiles() {
+    return apiRequestFrom<{ profiles: LoadTestProfilePayload[] }>(
+      TRAFFIC_API_BASE_URL,
+      "/traffic-monitoring/load-tests/profiles",
+    );
+  },
+  listLoadTestRuns(limit = 25) {
+    return apiRequestFrom<{ runs: LoadTestRunListItemPayload[] }>(
+      TRAFFIC_API_BASE_URL,
+      `/traffic-monitoring/load-tests/runs?limit=${limit}`,
+    );
+  },
+  getLoadTestRun(runId: string) {
+    return apiRequestFrom<LoadTestRunDetailPayload>(
+      TRAFFIC_API_BASE_URL,
+      `/traffic-monitoring/load-tests/runs/${encodeURIComponent(runId)}`,
+    );
+  },
+  startLoadTest(input: { profileKey: string; targetBaseUrl?: string }) {
+    return apiRequestFrom<LoadTestRunDetailPayload>(
+      TRAFFIC_API_BASE_URL,
+      "/traffic-monitoring/load-tests/runs",
+      {
+        method: "POST",
+        body: input,
+      },
     );
   },
 };

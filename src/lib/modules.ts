@@ -6,6 +6,7 @@ import {
   Workflow,
   Settings,
   ServerCog,
+  Flame,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,38 +23,33 @@ export interface ModuleDefinition {
   label: string;
   description: string;
   icon: LucideIcon;
-  /** Module not fully available yet (shows "em breve"). */
   comingSoon?: boolean;
-  /** Navigation entries this module unlocks. */
   nav: ModuleNavItem[];
 }
 
-// Lista fixa de módulos disponíveis no sistema. Novos módulos são adicionados
-// aqui no código; os admins apenas escolhem quais cada login pode enxergar.
 export const MODULES: ModuleDefinition[] = [
   {
     key: "n8n",
     label: "n8n / Workflows",
-    description: "Monitoramento das execuções dos workflows do n8n.",
+    description: "Monitoramento das execucoes dos workflows do n8n.",
     icon: Workflow,
     nav: [
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/analytics", label: "Análises", icon: BarChart3 },
-      { to: "/executions", label: "Execuções", icon: ListChecks },
-      { to: "/history", label: "Histórico", icon: History },
+      { to: "/analytics", label: "Analises", icon: BarChart3 },
+      { to: "/executions", label: "Execucoes", icon: ListChecks },
+      { to: "/history", label: "Historico", icon: History },
       { to: "/workflows", label: "Workflows", icon: Workflow },
-      { to: "/settings", label: "Conexão", icon: Settings },
+      { to: "/settings", label: "Conexao", icon: Settings },
     ],
   },
   {
     key: "server_access",
     label: "Acesso a Servidores",
-    description:
-      "Monitoramento de acesso de terceiros aos servidores da empresa.",
+    description: "Auditoria de consumo, desempenho e erros das APIs corporativas.",
     icon: ServerCog,
-    comingSoon: true,
     nav: [
-      { to: "/server-access", label: "Servidores", icon: ServerCog },
+      { to: "/server-access", label: "Trafego de APIs", icon: ServerCog },
+      { to: "/server-access/load-tests", label: "Teste de Carga", icon: Flame },
     ],
   },
 ];

@@ -131,6 +131,11 @@ function AuthenticatedLayout() {
     navigate({ to: "/auth", replace: true });
   };
 
+  const isStandaloneLoadTestRun = /^\/server-access\/load-tests\/[^/]+$/.test(pathname);
+  if (isStandaloneLoadTestRun) {
+    return <Outlet />;
+  }
+
   const isActive = (to: string) => pathname === to || pathname.startsWith(`${to}/`);
   const initials = (user.displayName ?? user.email ?? "?").slice(0, 2).toUpperCase();
 

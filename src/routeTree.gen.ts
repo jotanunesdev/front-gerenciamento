@@ -23,7 +23,9 @@ import { Route as AuthenticatedExecutionsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
 import { Route as AuthenticatedWorkflowsIdRouteImport } from './routes/_authenticated/workflows_.$id'
+import { Route as AuthenticatedServerAccessLoadTestsRouteImport } from './routes/_authenticated/server-access.load-tests'
 import { Route as AuthenticatedExecutionsIdRouteImport } from './routes/_authenticated/executions_.$id'
+import { Route as AuthenticatedServerAccessLoadTestsRunIdRouteImport } from './routes/_authenticated/server-access.load-tests.$runId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -96,11 +98,23 @@ const AuthenticatedWorkflowsIdRoute =
     path: '/workflows/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedServerAccessLoadTestsRoute =
+  AuthenticatedServerAccessLoadTestsRouteImport.update({
+    id: '/load-tests',
+    path: '/load-tests',
+    getParentRoute: () => AuthenticatedServerAccessRoute,
+  } as any)
 const AuthenticatedExecutionsIdRoute =
   AuthenticatedExecutionsIdRouteImport.update({
     id: '/executions_/$id',
     path: '/executions/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServerAccessLoadTestsRunIdRoute =
+  AuthenticatedServerAccessLoadTestsRunIdRouteImport.update({
+    id: '/$runId',
+    path: '/$runId',
+    getParentRoute: () => AuthenticatedServerAccessLoadTestsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -112,12 +126,14 @@ export interface FileRoutesByFullPath {
   '/executions': typeof AuthenticatedExecutionsRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/server-access': typeof AuthenticatedServerAccessRoute
+  '/server-access': typeof AuthenticatedServerAccessRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/workflows': typeof AuthenticatedWorkflowsRoute
   '/executions/$id': typeof AuthenticatedExecutionsIdRoute
+  '/server-access/load-tests': typeof AuthenticatedServerAccessLoadTestsRouteWithChildren
   '/workflows/$id': typeof AuthenticatedWorkflowsIdRoute
+  '/server-access/load-tests/$runId': typeof AuthenticatedServerAccessLoadTestsRunIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -128,12 +144,14 @@ export interface FileRoutesByTo {
   '/executions': typeof AuthenticatedExecutionsRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/server-access': typeof AuthenticatedServerAccessRoute
+  '/server-access': typeof AuthenticatedServerAccessRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/workflows': typeof AuthenticatedWorkflowsRoute
   '/executions/$id': typeof AuthenticatedExecutionsIdRoute
+  '/server-access/load-tests': typeof AuthenticatedServerAccessLoadTestsRouteWithChildren
   '/workflows/$id': typeof AuthenticatedWorkflowsIdRoute
+  '/server-access/load-tests/$runId': typeof AuthenticatedServerAccessLoadTestsRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -146,12 +164,14 @@ export interface FileRoutesById {
   '/_authenticated/executions': typeof AuthenticatedExecutionsRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
-  '/_authenticated/server-access': typeof AuthenticatedServerAccessRoute
+  '/_authenticated/server-access': typeof AuthenticatedServerAccessRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/workflows': typeof AuthenticatedWorkflowsRoute
   '/_authenticated/executions_/$id': typeof AuthenticatedExecutionsIdRoute
+  '/_authenticated/server-access/load-tests': typeof AuthenticatedServerAccessLoadTestsRouteWithChildren
   '/_authenticated/workflows_/$id': typeof AuthenticatedWorkflowsIdRoute
+  '/_authenticated/server-access/load-tests/$runId': typeof AuthenticatedServerAccessLoadTestsRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -169,7 +189,9 @@ export interface FileRouteTypes {
     | '/users'
     | '/workflows'
     | '/executions/$id'
+    | '/server-access/load-tests'
     | '/workflows/$id'
+    | '/server-access/load-tests/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -185,7 +207,9 @@ export interface FileRouteTypes {
     | '/users'
     | '/workflows'
     | '/executions/$id'
+    | '/server-access/load-tests'
     | '/workflows/$id'
+    | '/server-access/load-tests/$runId'
   id:
     | '__root__'
     | '/'
@@ -202,7 +226,9 @@ export interface FileRouteTypes {
     | '/_authenticated/users'
     | '/_authenticated/workflows'
     | '/_authenticated/executions_/$id'
+    | '/_authenticated/server-access/load-tests'
     | '/_authenticated/workflows_/$id'
+    | '/_authenticated/server-access/load-tests/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -312,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWorkflowsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server-access/load-tests': {
+      id: '/_authenticated/server-access/load-tests'
+      path: '/load-tests'
+      fullPath: '/server-access/load-tests'
+      preLoaderRoute: typeof AuthenticatedServerAccessLoadTestsRouteImport
+      parentRoute: typeof AuthenticatedServerAccessRoute
+    }
     '/_authenticated/executions_/$id': {
       id: '/_authenticated/executions_/$id'
       path: '/executions/$id'
@@ -319,8 +352,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedExecutionsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/server-access/load-tests/$runId': {
+      id: '/_authenticated/server-access/load-tests/$runId'
+      path: '/$runId'
+      fullPath: '/server-access/load-tests/$runId'
+      preLoaderRoute: typeof AuthenticatedServerAccessLoadTestsRunIdRouteImport
+      parentRoute: typeof AuthenticatedServerAccessLoadTestsRoute
+    }
   }
 }
+
+interface AuthenticatedServerAccessLoadTestsRouteChildren {
+  AuthenticatedServerAccessLoadTestsRunIdRoute: typeof AuthenticatedServerAccessLoadTestsRunIdRoute
+}
+
+const AuthenticatedServerAccessLoadTestsRouteChildren: AuthenticatedServerAccessLoadTestsRouteChildren =
+  {
+    AuthenticatedServerAccessLoadTestsRunIdRoute:
+      AuthenticatedServerAccessLoadTestsRunIdRoute,
+  }
+
+const AuthenticatedServerAccessLoadTestsRouteWithChildren =
+  AuthenticatedServerAccessLoadTestsRoute._addFileChildren(
+    AuthenticatedServerAccessLoadTestsRouteChildren,
+  )
+
+interface AuthenticatedServerAccessRouteChildren {
+  AuthenticatedServerAccessLoadTestsRoute: typeof AuthenticatedServerAccessLoadTestsRouteWithChildren
+}
+
+const AuthenticatedServerAccessRouteChildren: AuthenticatedServerAccessRouteChildren =
+  {
+    AuthenticatedServerAccessLoadTestsRoute:
+      AuthenticatedServerAccessLoadTestsRouteWithChildren,
+  }
+
+const AuthenticatedServerAccessRouteWithChildren =
+  AuthenticatedServerAccessRoute._addFileChildren(
+    AuthenticatedServerAccessRouteChildren,
+  )
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnalyticsRoute: typeof AuthenticatedAnalyticsRoute
@@ -328,7 +398,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExecutionsRoute: typeof AuthenticatedExecutionsRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
-  AuthenticatedServerAccessRoute: typeof AuthenticatedServerAccessRoute
+  AuthenticatedServerAccessRoute: typeof AuthenticatedServerAccessRouteWithChildren
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedWorkflowsRoute: typeof AuthenticatedWorkflowsRoute
@@ -342,7 +412,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExecutionsRoute: AuthenticatedExecutionsRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
-  AuthenticatedServerAccessRoute: AuthenticatedServerAccessRoute,
+  AuthenticatedServerAccessRoute: AuthenticatedServerAccessRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedWorkflowsRoute: AuthenticatedWorkflowsRoute,
