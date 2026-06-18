@@ -106,6 +106,8 @@ function LoadTestRunPage() {
           </div>
         </header>
 
+        {run.capacityResult ? <CapacitySummary result={run.capacityResult} /> : null}
+
         <div className="grid gap-4 lg:grid-cols-2">
           <LiveChart title="Throughput" subtitle="Requests e falhas por segundo">
             <ChartContainer className="h-full min-h-64 w-full" config={chartConfigs.throughput}>
@@ -217,6 +219,66 @@ function LoadTestRunPage() {
       </div>
     </main>
   );
+}
+
+function CapacitySummary({
+  result,
+}: {
+  result: NonNullable<
+    Awaited<ReturnType<typeof trafficMonitoringApi.getLoadTestRun>>["capacityResult"]
+  >;
+}) {
+  const failureUsers = result.failureStartedAtUsers?.toLocaleString("pt-BR") ?? "Nao detectado";
+
+  return (
+    <section className="rounded-2xl border border-violet-400/20 bg-violet-400/[0.07] p-4">
+      <div className="mb-3">
+        <h2 className="text-sm font-semibold text-violet-100">Limite observado da API</h2>
+        <p className="text-xs text-slate-400">{capacityStopReason(result.stopReason)}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <CapacityMetric
+          label="Limite estavel estimado"
+          value={result.estimatedLimitUsers.toLocaleString("pt-BR")}
+        />
+        <CapacityMetric
+          label="Pico observado"
+          value={result.peakObservedUsers.toLocaleString("pt-BR")}
+        />
+        <CapacityMetric label="Inicio das falhas" value={failureUsers} />
+        <CapacityMetric
+          label="Meta maxima"
+          value={result.maximumTargetUsers.toLocaleString("pt-BR")}
+        />
+      </div>
+    </section>
+  );
+}
+
+function CapacityMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3">
+      <div className="text-xs text-slate-400">{label}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="text-xs text-slate-500">usuarios virtuais</div>
+    </div>
+  );
+}
+
+function capacityStopReason(reason: string) {
+  if (reason === "api-unavailable") {
+    return "A execucao foi interrompida automaticamente apos a API atingir 5% de indisponibilidade.";
+  }
+
+  if (reason === "maximum-reached") {
+    return "A API permaneceu disponivel ate o limite configurado de 5.000 usuarios.";
+  }
+
+  if (reason === "interrupted") {
+    return "A execucao terminou antes de identificar indisponibilidade ou atingir a meta maxima.";
+  }
+
+  return "A carga esta aumentando progressivamente ate a API ficar indisponivel ou atingir 5.000 usuarios.";
 }
 
 function LiveChart({

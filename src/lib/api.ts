@@ -330,6 +330,14 @@ export interface LoadTestEndpointMetricPayload {
   p99DurationMs: number;
 }
 
+export interface LoadTestCapacityResultPayload {
+  maximumTargetUsers: number;
+  peakObservedUsers: number;
+  estimatedLimitUsers: number;
+  failureStartedAtUsers: number | null;
+  stopReason: "running" | "api-unavailable" | "maximum-reached" | "interrupted";
+}
+
 export interface LoadTestRunListItemPayload {
   runId: string;
   profileKey: string;
@@ -355,6 +363,7 @@ export interface LoadTestRunDetailPayload extends LoadTestRunListItemPayload {
   progressPercent: number;
   currentVirtualUsers: number;
   summaryJson: string | null;
+  capacityResult: LoadTestCapacityResultPayload | null;
   thresholdResults: LoadTestThresholdResultPayload[];
   timeline: LoadTestTimelinePointPayload[];
   endpointMetrics: LoadTestEndpointMetricPayload[];

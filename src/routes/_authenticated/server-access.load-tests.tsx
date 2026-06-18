@@ -1,18 +1,22 @@
 import { Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  ArrowUpRight,
-  Flame,
-  Gauge,
-  Loader2,
-  ShieldCheck,
-  Siren,
-} from "lucide-react";
+import { ArrowUpRight, Activity, Flame, Gauge, Loader2, ShieldCheck, Siren } from "lucide-react";
 import { trafficMonitoringApi, type LoadTestProfilePayload } from "@/lib/api";
 import { formatDateTime, formatDurationMs } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/server-access/load-tests")({
   head: () => ({ meta: [{ title: "Teste de Carga - FlowControl" }] }),
@@ -66,8 +70,8 @@ function LoadTestsPage() {
             <h1 className="text-2xl font-bold tracking-tight">Teste de Carga</h1>
           </div>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Dispare testes `k6` em tres niveis e acompanhe throughput, latencia e concorrencia
-            em uma janela dedicada. Todos os resultados ficam salvos no banco de auditoria.
+            Dispare testes `k6` em quatro niveis e acompanhe throughput, latencia e concorrencia em
+            uma janela dedicada. Todos os resultados ficam salvos no banco de auditoria.
           </p>
         </div>
 
@@ -79,7 +83,7 @@ function LoadTestsPage() {
         ) : null}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
         {profilesQuery.isLoading ? (
           <LoadingCards />
         ) : (
@@ -124,6 +128,7 @@ function LoadTestsPage() {
                   <th className="pb-3 pr-4 font-medium">Inicio</th>
                   <th className="pb-3 pr-4 font-medium">Requests</th>
                   <th className="pb-3 pr-4 font-medium">Erro</th>
+                  <th className="pb-3 pr-4 font-medium">Pico VUs</th>
                   <th className="pb-3 pr-4 font-medium">P95</th>
                   <th className="pb-3 pl-4 font-medium text-right">Acao</th>
                 </tr>
@@ -145,6 +150,9 @@ function LoadTestsPage() {
                       {run.totalRequests.toLocaleString("pt-BR")}
                     </td>
                     <td className="py-3 pr-4 tabular-nums">{run.errorRate.toFixed(1)}%</td>
+                    <td className="py-3 pr-4 tabular-nums">
+                      {run.peakVirtualUsers.toLocaleString("pt-BR")}
+                    </td>
                     <td className="py-3 pr-4">{formatDurationMs(run.p95DurationMs)}</td>
                     <td className="py-3 pl-4 text-right">
                       <Button variant="outline" size="sm" onClick={() => openRunWindow(run.runId)}>
@@ -174,6 +182,7 @@ function ProfileCard({
   onStart: () => void;
 }) {
   const accent = getProfileAccent(profile.key);
+  const isLimitIdentification = profile.key === "identificar-limite";
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
@@ -192,17 +201,53 @@ function ProfileCard({
           value={Math.max(1, Math.round(profile.expectedDurationSeconds / 60))}
           suffix="min"
         />
-        <MetricCard label="Pico de VUs" value={profile.maxVirtualUsers} />
+        <MetricCard
+          label={isLimitIdentification ? "Limite investigado" : "Pico de VUs"}
+          value={profile.maxVirtualUsers}
+        />
       </div>
 
-      <Button className="mt-5 w-full" disabled={disabled} onClick={onStart}>
-        {isStarting ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Flame className="mr-2 h-4 w-4" />
-        )}
-        Iniciar teste
-      </Button>
+      {isLimitIdentification ? (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button className="mt-5 w-full" variant="destructive" disabled={disabled}>
+              {isStarting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4" />
+              )}
+              Identificar limite
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Executar teste de alto impacto?</AlertDialogTitle>
+              <AlertDialogDescription>
+                A carga aumentara progressivamente ate 5.000 usuarios virtuais e podera deixar a API
+                temporariamente indisponivel. Execute somente em ambiente controlado.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={onStart}
+              >
+                Executar teste
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : (
+        <Button className="mt-5 w-full" disabled={disabled} onClick={onStart}>
+          {isStarting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Flame className="mr-2 h-4 w-4" />
+          )}
+          Iniciar teste
+        </Button>
+      )}
     </section>
   );
 }
@@ -210,7 +255,7 @@ function ProfileCard({
 function LoadingCards() {
   return (
     <>
-      {[1, 2, 3].map((item) => (
+      {[1, 2, 3, 4].map((item) => (
         <div
           key={item}
           className="flex min-h-60 items-center justify-center rounded-3xl border border-border bg-card"
@@ -222,15 +267,7 @@ function LoadingCards() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  suffix,
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-}) {
+function MetricCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   return (
     <div className="rounded-2xl bg-muted/35 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -251,6 +288,10 @@ function ProfileIcon({ profileKey }: { profileKey: string }) {
     return <Gauge className="h-6 w-6 text-amber-500" />;
   }
 
+  if (profileKey === "identificar-limite") {
+    return <Activity className="h-6 w-6 text-violet-500" />;
+  }
+
   return <Siren className="h-6 w-6 text-rose-500" />;
 }
 
@@ -264,16 +305,10 @@ function StatusBadge({ status }: { status: string }) {
   }
 
   if (status === "failed") {
-    return (
-      <Badge className="bg-rose-500/15 text-rose-700 hover:bg-rose-500/15">Falhou</Badge>
-    );
+    return <Badge className="bg-rose-500/15 text-rose-700 hover:bg-rose-500/15">Falhou</Badge>;
   }
 
-  return (
-    <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15">
-      Executando
-    </Badge>
-  );
+  return <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15">Executando</Badge>;
 }
 
 function getProfileAccent(profileKey: string) {
@@ -283,6 +318,10 @@ function getProfileAccent(profileKey: string) {
 
   if (profileKey === "intenso") {
     return "linear-gradient(90deg, #f59e0b, #f97316)";
+  }
+
+  if (profileKey === "identificar-limite") {
+    return "linear-gradient(90deg, #7c3aed, #22d3ee)";
   }
 
   return "linear-gradient(90deg, #ef4444, #fb7185)";
