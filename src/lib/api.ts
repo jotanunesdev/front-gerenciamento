@@ -3,9 +3,14 @@ import type { ModuleKey } from "@/lib/modules";
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
   "http://localhost:3015";
-const TRAFFIC_API_BASE_URL =
+const configuredTrafficApiBaseUrl =
   (import.meta.env.VITE_TRAFFIC_API_BASE_URL as string | undefined)?.replace(/\/+$/, "") ||
   "https://apifluig.jotanunes.com";
+const TRAFFIC_API_BASE_URL =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:8080"
+    : configuredTrafficApiBaseUrl;
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
